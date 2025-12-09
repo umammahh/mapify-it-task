@@ -1,0 +1,15 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Islamabad BBox (approx)", "source": "manual" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [72.90, 33.55], [73.20, 33.55], [73.20, 33.80], [72.90, 33.80], [72.90, 33.55]
+        ]]
+      }
+    }
+  ]
+}
