@@ -7,12 +7,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static geojson data
 const dataPath = path.join(__dirname, '..', 'data');
 console.log('Serving data from:', dataPath);
 console.log('Absolute path:', path.resolve(dataPath));
 
-// Serve static files with proper content type
 app.use('/data', express.static(dataPath, {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.geojson')) {
