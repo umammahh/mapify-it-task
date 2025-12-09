@@ -40,3 +40,23 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Pulsing animation for selected location highlight */
+@keyframes pulse {
+  0% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+}
+
+.selected-location-highlight {
+  animation: pulse 2s ease-in-out infinite;
+}

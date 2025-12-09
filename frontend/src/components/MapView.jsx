@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMap } from "react-leaflet";
+import React, { useEffect, useState, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMap, Circle, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 // Import leaflet.vectorgrid - this extends L.vectorGrid
 import "leaflet.vectorgrid";
+import SearchBar from "./SearchBar";
 
 // Verify vectorgrid is loaded
 if (typeof window !== 'undefined') {
@@ -55,7 +56,7 @@ const initialPOIs = [
 // Data base URL (backend static /data). Default to Render production backend.
 const DATA_BASE =
   import.meta.env.VITE_DATA_BASE_URL ||
-  "https://mapify-it-task.onrender.com/data";
+  "https://mapify-it-task.onrender.com/data" || "http://localhost:5000/data";
 
 // Mapbox Vector Tiles layer - Only visible when map view intersects Islamabad bounds
 function MapboxVectorLayer() {
@@ -268,6 +269,8 @@ export default function MapView() {
   const [pois, setPois] = useState(initialPOIs);
   const [loading, setLoading] = useState(false);
   const [boundary, setBoundary] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const mapRef = useRef(null);
 
   // Fetch boundary (islamabad.geojson) from backend static /data
   useEffect(() => {
@@ -372,6 +375,20 @@ export default function MapView() {
     fetchPOIs();
   }, []);
 
+  // Handle location selection from search
+  const handleLocationSelect = (coords, result) => {
+    setSelectedLocation({ coords, result });
+    
+    // Fly to the selected location
+    const map = window.leafletMapInstance;
+    if (map) {
+      map.flyTo(coords, 16, {
+        animate: true,
+        duration: 1.5,
+      });
+    }
+  };
+
   // Style functions
   const boundaryStyle = {
     color: "#2563eb",
@@ -399,18 +416,26 @@ export default function MapView() {
   };
 
   return (
-    <MapContainer
-      center={[33.6844, 73.0479]}
-      zoom={13}
-      minZoom={10}
-      maxZoom={19}
-      style={{ height: "90vh", width: "100%" }}
-      scrollWheelZoom={true}
-      whenCreated={(map) => {
-        // expose for fitBounds after boundary loads
-        window.leafletMapInstance = map;
-      }}
-    >
+    <div style={{ position: "relative", height: "90vh", width: "100%" }}>
+      {/* Search Bar */}
+      <SearchBar 
+        onSelectLocation={handleLocationSelect}
+        map={window.leafletMapInstance}
+      />
+      
+      <MapContainer
+        center={[33.6844, 73.0479]}
+        zoom={13}
+        minZoom={10}
+        maxZoom={19}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom={true}
+        whenCreated={(map) => {
+          // expose for fitBounds after boundary loads
+          window.leafletMapInstance = map;
+          mapRef.current = map;
+        }}
+      >
       {/* Base OSM raster tiles - background layer */}
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -448,6 +473,90 @@ export default function MapView() {
           </Popup>
         </Marker>
       ))}
+
+      {/* Selected Location Marker and Highlight (from search) */}
+      {selectedLocation && (
+        <>
+          {/* Highlight Circle - larger area indicator */}
+          <Circle
+            center={selectedLocation.coords}
+            radius={500} // 500 meters radius
+            pathOptions={{
+              color: "#ef4444",
+              fillColor: "#ef4444",
+              fillOpacity: 0.2,
+              weight: 3,
+              opacity: 0.6
+            }}
+          />
+          
+          {/* Inner highlight circle - smaller, more visible */}
+          <Circle
+            center={selectedLocation.coords}
+            radius={200} // 200 meters radius
+            pathOptions={{
+              color: "#ef4444",
+              fillColor: "#ef4444",
+              fillOpacity: 0.3,
+              weight: 2,
+              opacity: 0.8
+            }}
+          />
+          
+          {/* Center marker with pulsing effect */}
+          <CircleMarker
+            center={selectedLocation.coords}
+            radius={12}
+            pathOptions={{
+              color: "#ffffff",
+              fillColor: "#ef4444",
+              fillOpacity: 1,
+              weight: 3
+            }}
+          >
+            <Popup>
+              <div>
+                <b>{selectedLocation.result.name}</b>
+                <br />
+                Category: {selectedLocation.result.category}
+                <br />
+                Coordinates: {selectedLocation.coords[0].toFixed(4)}, {selectedLocation.coords[1].toFixed(4)}
+              </div>
+            </Popup>
+          </CircleMarker>
+          
+          {/* Outer pulsing ring - animated */}
+          <CircleMarker
+            center={selectedLocation.coords}
+            radius={25}
+            pathOptions={{
+              color: "#ef4444",
+              fillColor: "transparent",
+              fillOpacity: 0,
+              weight: 2,
+              opacity: 0.4,
+              dashArray: "10, 10"
+            }}
+            className="selected-location-highlight"
+          />
+          
+          {/* Additional pulsing outer circle for better visibility */}
+          <Circle
+            center={selectedLocation.coords}
+            radius={300}
+            pathOptions={{
+              color: "#ef4444",
+              fillColor: "transparent",
+              fillOpacity: 0,
+              weight: 2,
+              opacity: 0.3,
+              dashArray: "5, 5"
+            }}
+            className="selected-location-highlight"
+          />
+        </>
+      )}
     </MapContainer>
+    </div>
   );
 }
