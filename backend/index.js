@@ -11,7 +11,6 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'https://mapify-it-task.vercel.app',
-  'https://mapify-it-task.netlify.app',
   // Add custom frontend URL from environment variable if provided
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
 ];
@@ -19,7 +18,8 @@ const allowedOrigins = [
 // Remove duplicates
 const uniqueOrigins = [...new Set(allowedOrigins)];
 
-app.use(cors({
+// CORS middleware function
+const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
@@ -28,7 +28,7 @@ app.use(cors({
     if (uniqueOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      // In development, allow all origins for easier testing
+      // In production, be strict; in development, allow all
       if (process.env.NODE_ENV !== 'production') {
         callback(null, true);
       } else {
@@ -39,8 +39,29 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
+
+// Additional CORS middleware for /data routes (static files)
+app.use('/data', (req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (uniqueOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production')) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else if (!origin || process.env.NODE_ENV !== 'production') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(express.json());
 
@@ -50,15 +71,7 @@ console.log('Serving data from:', dataPath);
 console.log('Absolute path:', path.resolve(dataPath));
 
 app.use('/data', express.static(dataPath, {
-  setHeaders: (res, filePath, stat) => {
-    // Set CORS headers for all static files
-    const origin = res.req?.headers?.origin;
-    if (origin && uniqueOrigins.indexOf(origin) !== -1) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-    }
-    
+  setHeaders: (res, filePath) => {
     if (filePath.endsWith('.geojson')) {
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
     }
