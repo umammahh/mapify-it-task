@@ -1,10 +1,11 @@
-import React from 'react';
+import React from "react";
+import MapView from "./components/MapView";
 
-export default function App(){
+export default function App() {
   return (
-    <div style={{padding:20}}>
-      <h1>MapifyIt — Frontend</h1>
-      <p>Map will load here. Use React + Leaflet.</p>
+    <div style={{ height: "100vh", width: "100vw" }}>
+      <h1 style={{ textAlign: "center", margin: "10px 0" }}>MapifyIt — Islamabad Map</h1>
+      <MapView />
     </div>
   );
 }
