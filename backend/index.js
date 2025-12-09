@@ -1,12 +1,68 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const axios = require('axios');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve static geojson data
+const dataPath = path.join(__dirname, '..', 'data');
+console.log('Serving data from:', dataPath);
+console.log('Absolute path:', path.resolve(dataPath));
+
+// Serve static files with proper content type
+app.use('/data', express.static(dataPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.geojson')) {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+  }
+}));
+
+// Explicit route handlers for GeoJSON files (fallback)
+app.get('/data/islamabad.geojson', (req, res) => {
+  const fs = require('fs');
+  const filePath = path.join(dataPath, 'islamabad.geojson');
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: 'File not found' });
+  }
+});
+
+app.get('/data/rawPois.geojson', (req, res) => {
+  const fs = require('fs');
+  const filePath = path.join(dataPath, 'rawPois.geojson');
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: 'File not found' });
+  }
+});
+
 app.get('/', (req, res) => res.json({ status: 'ok', message: 'MapifyIt backend' }));
+
+// Test endpoint to verify data directory is accessible
+app.get('/test-data', (req, res) => {
+  const fs = require('fs');
+  const dataPath = path.join(__dirname, '..', 'data');
+  try {
+    const files = fs.readdirSync(dataPath);
+    res.json({ 
+      dataPath, 
+      files,
+      exists: fs.existsSync(dataPath),
+      islamabadExists: fs.existsSync(path.join(dataPath, 'islamabad.geojson')),
+      rawPoisExists: fs.existsSync(path.join(dataPath, 'rawPois.geojson'))
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // API endpoint to fetch POIs for Islamabad
 app.get('/api/pois', async (req, res) => {
