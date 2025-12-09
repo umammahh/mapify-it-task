@@ -1,13 +1,33 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const axios = require('axios');
 
 const app = express();
-app.use(cors());
+
+// CORS configuration - allow frontend origin from environment variable
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? [process.env.FRONTEND_URL]
+  : ['http://localhost:5173', 'http://localhost:3000']; // Default local dev origins
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
-const dataPath = path.join(__dirname, '..', 'data');
+// Data path - now pointing to backend/data folder
+const dataPath = path.join(__dirname, 'data');
 console.log('Serving data from:', dataPath);
 console.log('Absolute path:', path.resolve(dataPath));
 
@@ -21,7 +41,6 @@ app.use('/data', express.static(dataPath, {
 
 // Explicit route handlers for GeoJSON files (fallback)
 app.get('/data/islamabad.geojson', (req, res) => {
-  const fs = require('fs');
   const filePath = path.join(dataPath, 'islamabad.geojson');
   if (fs.existsSync(filePath)) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -32,7 +51,6 @@ app.get('/data/islamabad.geojson', (req, res) => {
 });
 
 app.get('/data/rawPois.geojson', (req, res) => {
-  const fs = require('fs');
   const filePath = path.join(dataPath, 'rawPois.geojson');
   if (fs.existsSync(filePath)) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -46,16 +64,15 @@ app.get('/', (req, res) => res.json({ status: 'ok', message: 'MapifyIt backend' 
 
 // Test endpoint to verify data directory is accessible
 app.get('/test-data', (req, res) => {
-  const fs = require('fs');
-  const dataPath = path.join(__dirname, '..', 'data');
+  const testDataPath = path.join(__dirname, 'data');
   try {
-    const files = fs.readdirSync(dataPath);
+    const files = fs.readdirSync(testDataPath);
     res.json({ 
-      dataPath, 
+      dataPath: testDataPath, 
       files,
-      exists: fs.existsSync(dataPath),
-      islamabadExists: fs.existsSync(path.join(dataPath, 'islamabad.geojson')),
-      rawPoisExists: fs.existsSync(path.join(dataPath, 'rawPois.geojson'))
+      exists: fs.existsSync(testDataPath),
+      islamabadExists: fs.existsSync(path.join(testDataPath, 'islamabad.geojson')),
+      rawPoisExists: fs.existsSync(path.join(testDataPath, 'rawPois.geojson'))
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
